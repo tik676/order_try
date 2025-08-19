@@ -1,0 +1,43 @@
+services:
+  backend-userservice:
+    build:
+      context: ./user_service
+      dockerfile: Dockerfile
+    env_file:
+      - ./user_service/.env
+    ports:                    
+      - "8080:8080"           
+    restart: always
+    depends_on:
+      db-userservice: 
+        condition: service_healthy  
+    networks:
+      - user_network
+
+  db-userservice: 
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dbName
+    ports:                    
+      - "5432:5432"           
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./user_service/internal/migration:/docker-entrypoint-initdb.d  
+    healthcheck:  
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - user_network
+
+volumes:
+  db_data:                    
+
+networks:
+  user_network:
+    driver: bridge
