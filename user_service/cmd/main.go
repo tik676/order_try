@@ -1,0 +1,56 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+	"user_service/internal/delivery/rest"
+	"user_service/internal/infrastructure"
+	"user_service/internal/usecase"
+
+	_ "github.com/lib/pq"
+)
+
+func main() {
+	port, err := strconv.Atoi(os.Getenv("POSTGRES_PORT"))
+	if err != nil {
+		log.Fatal("Invalid POSTGRES_PORT:", err)
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		os.Getenv("POSTGRES_HOST"),
+		port,
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_NAME"),
+	)
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	for i := 0; i < 10; i++ {
+		err := db.Ping()
+		if err == nil {
+			break
+		}
+		log.Printf("Waiting for database, attempt %d...", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
+	repo := infrastructure.NewDB(db)
+	jwtKey := infrastructure.NewJWTMaker(os.Getenv("JWT_SECRET"), db)
+	usecase := usecase.NewUseCase(repo, jwtKey)
+
+	router := rest.SetupRouter(usecase, jwtKey)
+
+	if err := http.ListenAndServe(":8080", router); err != nil {
+		log.Printf("Failed to up server:%v", err)
+	}
+}
