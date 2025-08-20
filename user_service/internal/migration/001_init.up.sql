@@ -8,8 +8,8 @@ CREATE TABLE users(
 
 CREATE TABLE tokens(
     id BIGSERIAL PRIMARY KEY,
-    access_token TEXT UNIQUE NOT NULL,
-    refresh_token TEXT,
+    refresh_token TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
-    expires_at TIMESTAMP NOT NULL
+    expires_at TIMESTAMP NOT NULL,
+    user_id BIGINT REFERENCES users(id)
 );

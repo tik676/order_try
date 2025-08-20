@@ -9,6 +9,7 @@ import (
 	"user_service/internal/domain"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 type JWTMaker struct {
@@ -22,12 +23,12 @@ func NewJWTMaker(secretKey string, db *sql.DB) *JWTMaker {
 
 func (j *JWTMaker) CreateToken(userID int64, role string) (*domain.Token, error) {
 	now := time.Now()
-	expires_at := now.Add(24 * time.Hour)
+	access_expires_at := now.Add(15 * time.Minute)
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
-		"exp":     expires_at.Unix(),
+		"exp":     access_expires_at.Unix(),
 		"iat":     now.Unix(),
 		"iss":     "user-service",
 	}
@@ -39,8 +40,10 @@ func (j *JWTMaker) CreateToken(userID int64, role string) (*domain.Token, error)
 		return nil, err
 	}
 
-	query := `INSERT INTO tokens(access_token,refresh_token,created_at,expires_at)VALUES($1,$2,$3,$4)`
-	_, err = j.DB.Exec(query, accesstoken, "", now, expires_at)
+	refreshToken := j.GenerateRefreshToken()
+	expires_at := now.Add(7 * 24 * time.Hour)
+	query := `INSERT INTO tokens(refresh_token,created_at,expires_at,user_id)VALUES($1,$2,$3,$4)`
+	_, err = j.DB.Exec(query, refreshToken, now, expires_at, userID)
 	if err != nil {
 		log.Printf("Failed to save token:%v", err)
 		return nil, err
@@ -48,7 +51,7 @@ func (j *JWTMaker) CreateToken(userID int64, role string) (*domain.Token, error)
 
 	return &domain.Token{
 		AccessToken:  accesstoken,
-		RefreshToken: "",
+		RefreshToken: refreshToken,
 		CreatedAt:    now,
 		ExpiresAt:    expires_at,
 	}, nil
@@ -75,9 +78,9 @@ func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, role string, e
 	return 0, "", errors.New("invalid token claims")
 }
 
-func (j *JWTMaker) RevokeToken(token string) error {
-	query := `DELETE FROM tokens WHERE access_token=$1`
-	_, err := j.DB.Exec(query, token)
+func (j *JWTMaker) RevokeRefreshToken(refreshToken string) error {
+	query := `DELETE FROM tokens WHERE refresh_token=$1`
+	_, err := j.DB.Exec(query, refreshToken)
 	if err != nil {
 		log.Printf("error token not found:%v", err)
 		return err
@@ -85,24 +88,67 @@ func (j *JWTMaker) RevokeToken(token string) error {
 	return nil
 }
 
-func (j *JWTMaker) IsTokenValid(token string) (bool, error) {
-	var tokesLife struct {
-		createdAt time.Time
-		expiresAt time.Time
-	}
-	query := `SELECT created_at,expires_at FROM tokens WHERE access_token = $1`
-	err := j.DB.QueryRow(query, token).Scan(&tokesLife.createdAt, &tokesLife.expiresAt)
+func (j *JWTMaker) GenerateRefreshToken() string {
+	refreshToken := uuid.New().String()
+	return refreshToken
+
+}
+
+func (j *JWTMaker) RefreshAccessToken(refreshToken string) (*domain.Token, error) {
+
+	userID, err := j.VerifyRefreshToken(refreshToken)
 	if err != nil {
-		log.Printf("error token not found:%v", err)
-		return false, err
+		return nil, errors.New("invalid refresh token")
 	}
 
-	if time.Now().After(tokesLife.expiresAt) {
-		return false, nil
-	}
-	if tokesLife.createdAt.After(time.Now()) {
-		return false, nil
+	var role string
+
+	userQuery := `SELECT role FROM users WHERE id = $1`
+	err = j.DB.QueryRow(userQuery, userID).Scan(&role)
+	if err != nil {
+		log.Printf("User not found: %v", err)
+		return nil, errors.New("user not found")
 	}
 
-	return true, nil
+	now := time.Now()
+	accessExpiresAt := now.Add(15 * time.Minute)
+
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"role":    role,
+		"exp":     accessExpiresAt.Unix(),
+		"iat":     now.Unix(),
+		"iss":     "user-service",
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	newAccessToken, err := token.SignedString([]byte(j.secretKey))
+	if err != nil {
+		log.Printf("Failed to create new access token: %v", err)
+		return nil, err
+	}
+	return &domain.Token{
+		AccessToken:  newAccessToken,
+		RefreshToken: refreshToken,
+		CreatedAt:    now,
+		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour),
+	}, nil
+}
+
+func (j *JWTMaker) VerifyRefreshToken(refreshToken string) (int64, error) {
+	var userID int64
+	var expiresAt time.Time
+
+	query := `SELECT user_id, expires_at FROM tokens WHERE refresh_token = $1`
+	err := j.DB.QueryRow(query, refreshToken).Scan(&userID, &expiresAt)
+	if err != nil {
+		return 0, errors.New("refresh token not found")
+	}
+
+	if time.Now().After(expiresAt) {
+		return 0, errors.New("refresh token expired")
+	}
+
+	return userID, nil
 }

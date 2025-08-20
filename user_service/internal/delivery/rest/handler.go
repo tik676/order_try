@@ -45,7 +45,7 @@ func (h *HTTPHandler) RegisterHandler(c *gin.Context) {
 	user, err := h.usecase.RegisterUser(userInput.Name, userInput.Password)
 	if err != nil {
 		log.Printf("Registration error: %v", err)
-		c.JSON(500, gin.H{"error": "Internal server error"})
+		c.JSON(500, gin.H{"error": "User already exists"})
 		return
 	}
 
@@ -78,4 +78,52 @@ func (h *HTTPHandler) LoginHandler(c *gin.Context) {
 	}
 
 	c.JSON(200, token)
+}
+
+func (h *HTTPHandler) RefreshTokenHandler(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid JSON format"})
+		return
+	}
+
+	if req.RefreshToken == "" {
+		c.JSON(400, gin.H{"error": "refresh_token is required"})
+		return
+	}
+
+	token, err := h.usecase.RefreshToken(req.RefreshToken)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	c.JSON(200, token)
+}
+
+func (h *HTTPHandler) LogoutHandler(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid JSON format"})
+		return
+	}
+
+	if req.RefreshToken == "" {
+		c.JSON(400, gin.H{"error": "refresh_token is required"})
+		return
+	}
+
+	err := h.usecase.LogoutUser(req.RefreshToken)
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "successful"})
 }

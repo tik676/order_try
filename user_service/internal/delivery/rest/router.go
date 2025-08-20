@@ -15,6 +15,8 @@ func SetupRouter(usecase *usecase.UseCase, tokenManager domain.TokenManager) *gi
 
 	r.POST("/register", handler.RegisterHandler)
 	r.POST("/login", handler.LoginHandler)
+	r.POST("/refresh", handler.RefreshTokenHandler)
+	r.POST("/logout", handler.LogoutHandler)
 	protected := r.Group("/")
 	protected.Use(middleware.RequireAuth())
 	{

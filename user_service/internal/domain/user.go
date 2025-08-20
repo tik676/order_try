@@ -5,7 +5,7 @@ import "time"
 type User struct {
 	ID           int64     `json:"id"`
 	Name         string    `json:"name"`
-	PasswordHash string    `json:"password_Hash"`
+	PasswordHash string    `json:"-"`
 	Role         string    `json:"role"`
 	RegisteredAt time.Time `json:"registered_at"`
 }
@@ -30,6 +30,9 @@ type Authorization interface {
 type TokenManager interface {
 	CreateToken(userID int64, role string) (*Token, error)
 	VerifyToken(token string) (userID int64, role string, err error)
-	RevokeToken(token string) error
-	IsTokenValid(token string) (bool, error)
+
+	GenerateRefreshToken() string
+	RefreshAccessToken(refreshToken string) (*Token, error)
+	VerifyRefreshToken(refreshToken string) (int64, error)
+	RevokeRefreshToken(refreshToken string) error
 }

@@ -54,3 +54,29 @@ func (u *UseCase) LoginUser(name, password string) (*domain.Token, error) {
 
 	return token, nil
 }
+
+func (u *UseCase) RefreshToken(refreshToken string) (*domain.Token, error) {
+	if refreshToken == "" {
+		return nil, errors.New("refresh token is required")
+	}
+
+	newTokens, err := u.repoToken.RefreshAccessToken(refreshToken)
+	if err != nil {
+		return nil, errors.New("refresh token not found")
+	}
+
+	return newTokens, nil
+}
+
+func (u *UseCase) LogoutUser(refreshToken string) error {
+	if refreshToken == "" {
+		return errors.New("refresh token is required")
+	}
+
+	err := u.repoToken.RevokeRefreshToken(refreshToken)
+	if err != nil {
+		return errors.New("refresh token not found")
+	}
+
+	return nil
+}

@@ -12,7 +12,7 @@ import (
 	"user_service/internal/infrastructure"
 	"user_service/internal/usecase"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
@@ -29,11 +29,15 @@ func main() {
 		os.Getenv("POSTGRES_NAME"),
 	)
 
-	db, err := sql.Open("postgres", dsn)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		panic(err)
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Printf("Failed to close database connection: %v", err)
+		}
+	}()
 
 	for i := 0; i < 10; i++ {
 		err := db.Ping()
