@@ -1,4 +1,4 @@
-CREATE TABLE users(
+CREATE TABLE IF NOT EXISTS users(
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     password_Hash VARCHAR(255) NOT NULL,
@@ -6,7 +6,7 @@ CREATE TABLE users(
     registered_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE tokens(
+CREATE TABLE IF NOT EXISTS tokens(
     id BIGSERIAL PRIMARY KEY,
     refresh_token TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT NOW(),
