@@ -48,7 +48,3 @@ func (uc *UseCase) GetMessages(limit, offset int) ([]domain.Message, error) {
 
 	return uc.repo.GetMessages(limit, offset)
 }
-
-func (uc *UseCase) GetUserByID(id int) (domain.User, error) {
-	return uc.repo.GetUserByID(id)
-}

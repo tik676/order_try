@@ -19,13 +19,16 @@ func NewWebSocket(usecase *usecase.UseCase) *WebSocketRepository {
 	return &WebSocketRepository{usecase: usecase}
 }
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	clientManager = NewClientManager()
+)
 
-func (ws *WebSocketRepository) wsHandler(c *gin.Context) {
+func (ws *WebSocketRepository) WsHandler(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.String(http.StatusBadRequest, "Failed to upgrade")
@@ -33,6 +36,11 @@ func (ws *WebSocketRepository) wsHandler(c *gin.Context) {
 	}
 	defer conn.Close()
 
+	clientManager.AddClient(conn)
+	defer func() {
+		clientManager.RemoveClient(conn)
+		conn.Close()
+	}()
 	var user domain.User
 
 	userIDValue, exists := c.Get("user_id")
@@ -77,9 +85,6 @@ func (ws *WebSocketRepository) wsHandler(c *gin.Context) {
 			continue
 		}
 
-		if err := conn.WriteMessage(websocket.TextMessage, msgJSON); err != nil {
-			log.Println("Write error:", err)
-			break
-		}
+		clientManager.Broadcast(msgJSON)
 	}
 }

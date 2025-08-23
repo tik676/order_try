@@ -64,13 +64,3 @@ func (db *Database) GetMessages(limit, offset int) ([]domain.Message, error) {
 
 	return messages, nil
 }
-
-func (db *Database) GetUserByID(id int) (domain.User, error) {
-	query := `SELECT * FROM users WHERE id = $1;`
-	var user domain.User
-	err := db.DB.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Role, &user.IsAnon)
-	if err != nil {
-		return domain.User{}, errors.New("Failed user not exists")
-	}
-	return user, nil
-}

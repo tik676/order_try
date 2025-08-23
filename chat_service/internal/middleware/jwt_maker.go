@@ -29,7 +29,7 @@ func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, role string, e
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		userID, ok1 := claims["user_id"].(int64)
+		userIDFloat, ok1 := claims["user_id"].(float64)
 		role, ok2 := claims["role"].(string)
 		expFloat, ok3 := claims["exp"].(float64)
 		if !ok1 || !ok2 || !ok3 {
@@ -38,7 +38,7 @@ func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, role string, e
 		if time.Now().Unix() > int64(expFloat) {
 			return 0, "", errors.New("token expired")
 		}
-		return int64(userID), role, nil
+		return int64(userIDFloat), role, nil
 	}
 
 	return 0, "", errors.New("invalid token")

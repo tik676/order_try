@@ -20,5 +20,4 @@ type MessageRepository interface {
 	SendMessage(msg Message) (Message, error)
 	DeleteMessage(id int64) error
 	GetMessages(limit, offset int) ([]Message, error)
-	GetUserByID(id int) (User, error)
 }
