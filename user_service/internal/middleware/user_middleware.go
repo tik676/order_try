@@ -30,7 +30,7 @@ func (am *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		userID, role, err := am.tokenManager.VerifyToken(tokenString)
+		userID, name, role, err := am.tokenManager.VerifyToken(tokenString)
 		if err != nil {
 			c.JSON(401, gin.H{"error": "Invalid token"})
 			c.Abort()
@@ -38,6 +38,7 @@ func (am *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		}
 
 		c.Set("user_id", userID)
+		c.Set("name", name)
 		c.Set("role", role)
 
 		c.Next()

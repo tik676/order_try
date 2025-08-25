@@ -28,8 +28,8 @@ type Authorization interface {
 }
 
 type TokenManager interface {
-	CreateToken(userID int64, role string) (*Token, error)
-	VerifyToken(token string) (userID int64, role string, err error)
+	CreateToken(userID int64, name, role string) (*Token, error)
+	VerifyToken(token string) (userID int64, name, role string, err error)
 
 	GenerateRefreshToken() string
 	RefreshAccessToken(refreshToken string) (*Token, error)

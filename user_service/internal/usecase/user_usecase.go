@@ -47,7 +47,7 @@ func (u *UseCase) LoginUser(name, password string) (*domain.Token, error) {
 		return nil, errors.New("invalid password")
 	}
 
-	token, err := u.repoToken.CreateToken(user.ID, user.Role)
+	token, err := u.repoToken.CreateToken(user.ID, user.Name, user.Role)
 	if err != nil {
 		return nil, errors.New("failed to create token")
 	}

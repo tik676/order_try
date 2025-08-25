@@ -29,6 +29,32 @@ var (
 )
 
 func (ws *WebSocketRepository) WsHandler(c *gin.Context) {
+	var user domain.User
+
+	userIDRaw, _ := c.Get("user_id")
+	nameRaw, _ := c.Get("name")
+	roleRaw, _ := c.Get("role")
+
+	userID, ok := userIDRaw.(int64)
+	if !ok {
+		userID = 0
+	}
+
+	name, ok := nameRaw.(string)
+	if !ok {
+		name = "Аноним"
+	}
+
+	role, ok := roleRaw.(string)
+	if !ok {
+		role = "anonym"
+	}
+
+	user.ID = userID
+	user.Name = name
+	user.Role = role
+	user.IsAnon = (userID == 0)
+
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		c.String(http.StatusBadRequest, "Failed to upgrade")
@@ -37,31 +63,7 @@ func (ws *WebSocketRepository) WsHandler(c *gin.Context) {
 	defer conn.Close()
 
 	clientManager.AddClient(conn)
-	defer func() {
-		clientManager.RemoveClient(conn)
-		conn.Close()
-	}()
-	var user domain.User
-
-	userIDValue, exists := c.Get("user_id")
-	if !exists {
-		c.String(http.StatusBadRequest, "Failed user not exists")
-		return
-	}
-	userID, ok := userIDValue.(int64)
-	if !ok {
-		c.String(http.StatusBadRequest, "Failed to upgrade")
-	}
-
-	roleValue, ok := c.Get("role")
-	if !ok {
-		c.String(http.StatusBadRequest, "Failed to get a role")
-		return
-	}
-	role, ok := roleValue.(string)
-
-	user.ID = userID
-	user.Role = role
+	defer clientManager.RemoveClient(conn)
 
 	for {
 		_, message, err := conn.ReadMessage()
@@ -69,22 +71,22 @@ func (ws *WebSocketRepository) WsHandler(c *gin.Context) {
 			log.Println("Read error:", err)
 			break
 		}
-
 		msg, err := ws.usecase.SendMessage(user, string(message))
 		if err != nil {
-			log.Printf("Failed to send message for user %d: %v", user.ID, err)
+			log.Printf("Error saving message: %v", err)
 			errMsg := map[string]string{"error": "Failed to send message"}
 			errJSON, _ := json.Marshal(errMsg)
 			conn.WriteMessage(websocket.TextMessage, errJSON)
 			continue
 		}
 
+		log.Printf("Message saved: ID=%d, UserID=%d, Content=%s", msg.ID, msg.UserID, msg.Content)
+
 		msgJSON, err := json.Marshal(msg)
 		if err != nil {
 			log.Println("Failed to marshal message:", err)
 			continue
 		}
-
 		clientManager.Broadcast(msgJSON)
 	}
 }

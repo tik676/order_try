@@ -21,13 +21,14 @@ func NewJWTMaker(secretKey string, db *sql.DB) *JWTMaker {
 	return &JWTMaker{secretKey: secretKey, DB: db}
 }
 
-func (j *JWTMaker) CreateToken(userID int64, role string) (*domain.Token, error) {
+func (j *JWTMaker) CreateToken(userID int64, name, role string) (*domain.Token, error) {
 	now := time.Now()
 	access_expires_at := now.Add(15 * time.Minute)
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
+		"name":    name,
 		"exp":     access_expires_at.Unix(),
 		"iat":     now.Unix(),
 		"iss":     "user-service",
@@ -58,7 +59,7 @@ func (j *JWTMaker) CreateToken(userID int64, role string) (*domain.Token, error)
 
 }
 
-func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, role string, err error) {
+func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, name, role string, err error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
@@ -66,16 +67,17 @@ func (j *JWTMaker) VerifyToken(tokenString string) (userID int64, role string, e
 		return []byte(j.secretKey), nil
 	})
 	if err != nil {
-		return 0, "", err
+		return 0, "", "", err
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		userID = int64(claims["user_id"].(float64))
 		role = claims["role"].(string)
-		return userID, role, nil
+		name = claims["name"].(string)
+		return userID, name, role, nil
 	}
 
-	return 0, "", errors.New("invalid token claims")
+	return 0, "", "", errors.New("invalid token claims")
 }
 
 func (j *JWTMaker) RevokeRefreshToken(refreshToken string) error {

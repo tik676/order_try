@@ -42,27 +42,29 @@ func (h *HTTPRepository) GetMessagesHandler(c *gin.Context) {
 func (h *HTTPRepository) PostMessageHandler(c *gin.Context) {
 	var user domain.User
 
-	userIDRaw, ok := c.Get("user_id")
-	roleRaw, rok := c.Get("role")
+	userIDRaw, _ := c.Get("user_id")
+	nameRaw, _ := c.Get("name")
+	roleRaw, _ := c.Get("role")
 
-	if ok && rok {
-		userID, okTyped := userIDRaw.(int64)
-		role, okRole := roleRaw.(string)
-		if !okTyped || !okRole {
-			c.JSON(400, gin.H{"error": "Invalid user data from token"})
-			return
-		}
-
-		user.ID = userID
-		user.Role = role
-		user.Name = "" // TODO передеть имя в claims
-		user.IsAnon = false
-	} else {
-		user.ID = 0
-		user.Name = "Аноним"
-		user.Role = "anonymous"
-		user.IsAnon = true
+	userID, ok := userIDRaw.(int64)
+	if !ok {
+		userID = 0
 	}
+
+	name, ok := nameRaw.(string)
+	if !ok {
+		name = "Аноним"
+	}
+
+	role, ok := roleRaw.(string)
+	if !ok {
+		role = "anonym"
+	}
+
+	user.ID = userID
+	user.Name = name
+	user.Role = role
+	user.IsAnon = (userID == 0)
 
 	var req struct {
 		Content string `json:"content"`

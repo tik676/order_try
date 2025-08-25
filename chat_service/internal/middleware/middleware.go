@@ -7,7 +7,7 @@ import (
 )
 
 type TokenManager interface {
-	VerifyToken(token string) (userID int64, role string, err error)
+	VerifyToken(token string) (userID int64, name, role string, err error)
 }
 
 type AuthMiddleware struct {
@@ -20,15 +20,22 @@ func NewAuthMiddleware(tokenmanager TokenManager) *AuthMiddleware {
 
 func (am *AuthMiddleware) OptionalAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
+
+		userID := int64(0)
+		name := "Аноним"
+		role := "anonym"
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-			userID, role, err := am.tokenManager.VerifyToken(tokenString)
-			if err == nil {
-				c.Set("user_id", userID)
-				c.Set("role", role)
+			if verifiedUserID, verifiedName, verifiedRole, err := am.tokenManager.VerifyToken(tokenString); err == nil {
+				userID = verifiedUserID
+				name = verifiedName
+				role = verifiedRole
 			}
 		}
+		c.Set("user_id", userID)
+		c.Set("name", name)
+		c.Set("role", role)
 		c.Next()
 	}
 }
